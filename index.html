@@ -7,8 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root {
-    --naranja: #C8720A;
-    --naranja-dark: #a85e08;
+    --naranja: #D4813A;
+    --naranja-dark: #b86a28;
     --negro: #0a0a0a;
     --blanco: #ffffff;
     --gris-claro: #f4f4f4;
@@ -37,13 +37,13 @@
   .logo-circle {
     width: 110px; height: 110px;
     background: var(--naranja);
-    border-radius: 50%;
-    border: 4px solid white;
+    border-radius: 24px;
+    border: none;
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 20px;
-    box-shadow: 0 0 30px rgba(200,114,10,0.4);
+    box-shadow: 0 8px 32px rgba(212,129,58,0.4);
   }
-  .logo-circle svg { width: 80px; height: 80px; }
+  .logo-circle svg { width: 90px; height: 90px; }
   .login-title { color: white; font-size: 28px; font-weight: 900; letter-spacing: 2px; text-align: center; line-height: 1; }
   .login-subtitle { color: #888; font-size: 14px; margin-top: 6px; text-align: center; letter-spacing: 1px; }
   .login-card {
@@ -110,9 +110,8 @@
   .header-logo { display: flex; align-items: center; gap: 10px; }
   .header-logo-icon {
     width: 38px; height: 38px;
-    background: var(--naranja); border-radius: 50%;
+    background: var(--naranja); border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    border: 2px solid white;
   }
   .header-logo-icon svg { width: 26px; height: 26px; }
   .header-info h3 { color: white; font-size: 14px; font-weight: 800; letter-spacing: 1px; }
@@ -266,11 +265,12 @@
 
 <!-- ===== PANTALLA LOGIN ===== -->
 <div id="pantallaLogin" class="pantalla activa">
-  <div class="login-logo-wrap">
+    <div class="login-logo-wrap">
     <div class="logo-circle">
-      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <text x="50%" y="38" text-anchor="middle" font-family="Montserrat,Arial,sans-serif" font-weight="900" font-size="28" fill="white">AM</text>
-        <text x="50%" y="58" text-anchor="middle" font-family="Montserrat,Arial,sans-serif" font-weight="700" font-size="11" fill="white" letter-spacing="1">MATERIALES</text>
+      <svg viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <text x="50%" y="46" text-anchor="middle" font-family="Montserrat,Arial,sans-serif" font-weight="900" font-size="38" fill="black" stroke="black" stroke-width="4">AM</text>
+        <text x="50%" y="46" text-anchor="middle" font-family="Montserrat,Arial,sans-serif" font-weight="900" font-size="38" fill="white">AM</text>
+        <text x="50%" y="66" text-anchor="middle" font-family="Montserrat,Arial,sans-serif" font-weight="800" font-size="12" fill="white" letter-spacing="1">MATERIALES</text>
       </svg>
     </div>
     <div class="login-title">AM MATERIALES</div>
@@ -426,7 +426,7 @@
 <script>
 const API_KEY = 'AIzaSyBiK7RgL9-d8SCPjWBq8xDciFBbCbwYicY';
 const PROJECT = 'am-materiales-12a2e';
-const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+const BASE = https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents;
 
 let clienteActual = null;
 let productos = [];
@@ -481,9 +481,9 @@ async function ingresar() {
   if (!val) return;
   document.getElementById('loginError').style.display = 'none';
 
-  // Buscar en clientes_base
   try {
-    const res = await fetch(`${BASE}:runQuery?key=${API_KEY}`, {
+    // Buscar en clientes_base por nombre
+    const res = await fetch(${BASE}:runQuery?key=${API_KEY}, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -496,10 +496,29 @@ async function ingresar() {
     });
     const rows = await res.json();
     const doc = rows[0]?.document;
-    if (doc) {
-      clienteActual = fromFirestore(doc);
+
+    // También buscar en colección 'clientes' (la original)
+    let doc2 = null;
+    if (!doc) {
+      const res2 = await fetch(${BASE}:runQuery?key=${API_KEY}, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: 'clientes' }],
+            where: { fieldFilter: { field: { fieldPath: 'nombre' }, op: 'EQUAL', value: { stringValue: val } } },
+            limit: 1
+          }
+        })
+      });
+      const rows2 = await res2.json();
+      doc2 = rows2[0]?.document;
+    }
+
+    const clienteDoc = doc || doc2;
+    if (clienteDoc) {
+      clienteActual = fromFirestore(clienteDoc);
     } else {
-      // Aceptar cualquier nombre aunque no esté registrado
       clienteActual = { nombre: val, telefono: '', direccion: '' };
     }
     document.getElementById('nombreUsuario').textContent = clienteActual.nombre;
@@ -527,7 +546,7 @@ async function registrar() {
   btn.disabled = true; btn.textContent = 'Registrando...';
 
   try {
-    const res = await fetch(`${BASE}/clientes_base?key=${API_KEY}`, {
+    const res = await fetch(${BASE}/clientes_base?key=${API_KEY}, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: toFields({
@@ -553,17 +572,17 @@ async function registrar() {
 async function cargarProductos() {
   document.getElementById('productosLista').innerHTML = '<div class="loading-prods"><div class="spinner"></div>Cargando productos...</div>';
   try {
-    const res = await fetch(`${BASE}/productos_mayorista?key=${API_KEY}&pageSize=100`);
-    const data = await res.json();
-    let docs = data.documents || [];
+    // Intentar productos_mayorista primero, luego productos
+    const [r1, r2] = await Promise.all([
+      fetch(${BASE}/productos_mayorista?key=${API_KEY}&pageSize=100),
+      fetch(${BASE}/productos?key=${API_KEY}&pageSize=100)
+    ]);
+    const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+    const docs1 = d1.documents || [];
+    const docs2 = d2.documents || [];
+    const allDocs = [...docs1, ...docs2];
 
-    if (docs.length === 0) {
-      const res2 = await fetch(`${BASE}/productos?key=${API_KEY}&pageSize=100`);
-      const data2 = await res2.json();
-      docs = data2.documents || [];
-    }
-
-    productos = docs.map(fromFirestore).filter(p => p.activo !== false);
+    productos = allDocs.map(fromFirestore).filter(p => p.activo !== false);
     categorias = new Set(productos.map(p => p.categoria).filter(Boolean));
     renderFiltros();
     renderProductos(productos);
@@ -624,7 +643,7 @@ function renderProductos(lista) {
 }
 
 function cambiarQty(id, delta) {
-  const input = document.getElementById(`qty-${id}`);
+  const input = document.getElementById(qty-${id});
   const val = Math.max(1, (parseInt(input.value) || 1) + delta);
   input.value = val;
 }
@@ -632,12 +651,12 @@ function cambiarQty(id, delta) {
 function agregar(id) {
   const prod = productos.find(p => p.id === id);
   if (!prod) return;
-  const qty = parseInt(document.getElementById(`qty-${id}`).value) || 1;
+  const qty = parseInt(document.getElementById(qty-${id}).value) || 1;
   const ex = carrito.find(i => i.id === id);
   if (ex) ex.cantidad += qty;
   else carrito.push({ ...prod, cantidad: qty });
   actualizarCarrito();
-  const btn = document.getElementById(`btn-${id}`);
+  const btn = document.getElementById(btn-${id});
   btn.textContent = '✓ Agregado';
   btn.classList.add('agregado');
   setTimeout(() => { btn.textContent = '+ Agregar'; btn.classList.remove('agregado'); }, 1500);
@@ -696,9 +715,9 @@ function irAFormulario() {
   document.getElementById('resumenLineas').innerHTML = carrito.map(i => {
     const p = i.unidades_pallet ? (i.precio_pallet||0)*i.cantidad : (i.precio_unitario||0)*i.cantidad;
     total += p;
-    return `<div class="resumen-linea">${i.nombre} × ${i.cantidad} — ${fmt(p)}</div>`;
+    return <div class="resumen-linea">${i.nombre} × ${i.cantidad} — ${fmt(p)}</div>;
   }).join('');
-  document.getElementById('resumenTotal').textContent = `Total: ${fmt(total)}`;
+  document.getElementById('resumenTotal').textContent = Total: ${fmt(total)};
   mostrar('pantallaFormulario');
 }
 
@@ -717,11 +736,11 @@ async function enviarPedido() {
   const productosStr = carrito.map(i => {
     const p = i.unidades_pallet ? (i.precio_pallet||0)*i.cantidad : (i.precio_unitario||0)*i.cantidad;
     total += p;
-    return `${i.nombre} x${i.cantidad}`;
+    return ${i.nombre} x${i.cantidad};
   }).join(', ');
 
   try {
-    const res = await fetch(`${BASE}/pedidos?key=${API_KEY}`, {
+    const res = await fetch(${BASE}/pedidos?key=${API_KEY}, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: toFields({
