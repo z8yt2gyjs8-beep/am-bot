@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AM Materiales — Panel de Pedidos</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --negro: #0D0D0D;
+    --blanco: #F3F1EC;
+    --naranja: #C65A1E;
+    --naranja-dark: #a84e18;
+    --gris: #1a1a1a;
+    --borde: #e0dbd3;
+    --verde: #2a7a2a;
+    --rojo: #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Montserrat', sans-serif; background: #f5f2ec; color: var(--negro); min-height: 100vh; }
+
+  header { background: var(--negro); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { width: 40px; height: 40px; background: var(--naranja); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .logo-icon span { font-family: 'Bebas Neue'; font-size: 18px; color: white; }
+  .logo-text h1 { font-family: 'Bebas Neue'; font-size: 20px; color: white; letter-spacing: 2px; }
+  .logo-text p { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .refresh-btn { background: #333; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-family: 'Montserrat'; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .refresh-btn:hover { background: var(--naranja); }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
+  .stat-card { background: white; border-radius: 12px; padding: 16px 20px; border: 1px solid var(--borde); }
+  .stat-val { font-family: 'Bebas Neue'; font-size: 32px; color: var(--negro); letter-spacing: 1px; line-height: 1; }
+  .stat-val.naranja { color: var(--naranja); }
+  .stat-lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-weight: 600; }
+
+  .filtros-panel { padding: 0 24px 16px; max-width: 1200px; margin: 0 auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .filtro-estado { padding: 6px 14px; border-radius: 99px; border: 1.5px solid var(--borde); background: white; font-family: 'Montserrat'; font-size: 12px; font-weight: 600; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; }
+  .filtro-estado.active { background: var(--negro); color: white; border-color: var(--negro); }
+
+  .pedidos-container { padding: 0 24px 40px; max-width: 1200px; margin: 0 auto; }
+  .pedido-card { background: white; border-radius: 12px; border: 1px solid var(--borde); margin-bottom: 12px; overflow: hidden; transition: box-shadow 0.2s; }
+  .pedido-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .pedido-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--borde); gap: 12px; flex-wrap: wrap; }
+  .pedido-id { font-size: 11px; font-weight: 700; color: #aaa; letter-spacing: 1px; text-transform: uppercase; }
+  .pedido-nombre { font-size: 16px; font-weight: 700; color: var(--negro); }
+  .pedido-fecha { font-size: 12px; color: #aaa; }
+  .badge { padding: 4px 12px; border-radius: 99px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge-pendiente { background: #fff3cd; color: #856404; }
+  .badge-confirmado { background: #d4edda; color: #155724; }
+  .badge-entregado { background: #cce5ff; color: #004085; }
+  .badge-cancelado { background: #f8d7da; color: #721c24; }
+  .pedido-body { padding: 16px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .pedido-info label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #aaa; display: block; margin-bottom: 3px; }
+  .pedido-info span { font-size: 14px; color: var(--negro); font-weight: 500; }
+  .pedido-productos { grid-column: 1 / -1; background: #f9f7f4; border-radius: 8px; padding: 12px; font-size: 13px; color: #555; line-height: 1.6; }
+  .pedido-footer { padding: 12px 20px; border-top: 1px solid var(--borde); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  .pedido-total { font-family: 'Bebas Neue'; font-size: 22px; color: var(--naranja); letter-spacing: 1px; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-estado { padding: 7px 14px; border-radius: 8px; border: none; font-family: 'Montserrat'; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-confirmar { background: #d4edda; color: #155724; }
+  .btn-confirmar:hover { background: #155724; color: white; }
+  .btn-entregar { background: #cce5ff; color: #004085; }
+  .btn-entregar:hover { background: #004085; color: white; }
+  .btn-cancelar { background: #f8d7da; color: #721c24; }
+  .btn-cancelar:hover { background: #721c24; color: white; }
+  .btn-whatsapp { background: #25D366; color: white; padding: 7px 14px; border-radius: 8px; border: none; font-family: 'Montserrat'; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+
+  .loading { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: #888; font-size: 14px; }
+  .spinner { width: 24px; height: 24px; border: 3px solid var(--borde); border-top-color: var(--naranja); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 60px; color: #aaa; font-size: 14px; }
+
+  @media (max-width: 600px) {
+    .pedido-body { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"><span>AM</span></div>
+    <div class="logo-text">
+      <h1>Panel de Pedidos</h1>
+      <p>AM Materiales</p>
+    </div>
+  </div>
+  <button class="refresh-btn" onclick="cargarPedidos()">↻ Actualizar</button>
+</header>
+
+<div class="stats" id="stats">
+  <div class="stat-card"><div class="stat-val naranja" id="statTotal">—</div><div class="stat-lbl">Pedidos totales</div></div>
+  <div class="stat-card"><div class="stat-val" id="statPendientes">—</div><div class="stat-lbl">Pendientes</div></div>
+  <div class="stat-card"><div class="stat-val" id="statConfirmados">—</div><div class="stat-lbl">Confirmados</div></div>
+  <div class="stat-card"><div class="stat-val" id="statMonto">—</div><div class="stat-lbl">Monto total</div></div>
+</div>
+
+<div class="filtros-panel">
+  <button class="filtro-estado active" onclick="filtrarEstado('todos', this)">Todos</button>
+  <button class="filtro-estado" onclick="filtrarEstado('pendiente', this)">Pendientes</button>
+  <button class="filtro-estado" onclick="filtrarEstado('confirmado', this)">Confirmados</button>
+  <button class="filtro-estado" onclick="filtrarEstado('entregado', this)">Entregados</button>
+  <button class="filtro-estado" onclick="filtrarEstado('cancelado', this)">Cancelados</button>
+</div>
+
+<div class="pedidos-container" id="pedidosContainer">
+  <div class="loading"><div class="spinner"></div> Cargando pedidos...</div>
+</div>
+
+<script>
+const API_KEY = 'AIzaSyBiK7RgL9-d8SCPjWBq8xDciFBbCbwYicY';
+const PROJECT = 'am-materiales-12a2e';
+const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+
+let pedidos = [];
+let filtroActual = 'todos';
+
+function fromFirestore(doc) {
+  const obj = { _id: doc.name, id: doc.name.split('/').pop() };
+  if (!doc.fields) return obj;
+  for (const [k, v] of Object.entries(doc.fields)) {
+    if (v.stringValue !== undefined) obj[k] = v.stringValue;
+    else if (v.doubleValue !== undefined) obj[k] = v.doubleValue;
+    else if (v.integerValue !== undefined) obj[k] = Number(v.integerValue);
+    else if (v.booleanValue !== undefined) obj[k] = v.booleanValue;
+    else if (v.nullValue !== undefined) obj[k] = null;
+  }
+  return obj;
+}
+
+function fmt(n) {
+  if (!n && n !== 0) return '—';
+  return '$' + Math.round(n).toLocaleString('es-AR');
+}
+
+async function cargarPedidos() {
+  document.getElementById('pedidosContainer').innerHTML = '<div class="loading"><div class="spinner"></div> Cargando pedidos...</div>';
+  try {
+    // Cargar de ambas colecciones
+    const [r1, r2] = await Promise.all([
+      fetch(`${BASE}/pedidos?key=${API_KEY}&pageSize=200`),
+      fetch(`${BASE}/pedidos_mayorista?key=${API_KEY}&pageSize=200`)
+    ]);
+    const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+    
+    const docs1 = (d1.documents || []).map(d => ({ ...fromFirestore(d), _col: 'pedidos' }));
+    const docs2 = (d2.documents || []).map(d => ({ ...fromFirestore(d), _col: 'pedidos_mayorista' }));
+    
+    pedidos = [...docs1, ...docs2].sort((a, b) => {
+      const ta = a.timestamp || a.fecha || '';
+      const tb = b.timestamp || b.fecha || '';
+      return tb.localeCompare(ta);
+    });
+
+    actualizarStats();
+    renderPedidos();
+  } catch (err) {
+    document.getElementById('pedidosContainer').innerHTML = '<div class="empty">Error cargando pedidos.</div>';
+  }
+}
+
+function actualizarStats() {
+  const pendientes = pedidos.filter(p => p.estado === 'pendiente').length;
+  const confirmados = pedidos.filter(p => p.estado === 'confirmado').length;
+  const monto = pedidos.reduce((a, p) => a + (p.total_estimado || 0), 0);
+  document.getElementById('statTotal').textContent = pedidos.length;
+  document.getElementById('statPendientes').textContent = pendientes;
+  document.getElementById('statConfirmados').textContent = confirmados;
+  document.getElementById('statMonto').textContent = fmt(monto);
+}
+
+function filtrarEstado(estado, btn) {
+  filtroActual = estado;
+  document.querySelectorAll('.filtro-estado').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPedidos();
+}
+
+function renderPedidos() {
+  const lista = filtroActual === 'todos' ? pedidos : pedidos.filter(p => p.estado === filtroActual);
+  const cont = document.getElementById('pedidosContainer');
+  if (lista.length === 0) {
+    cont.innerHTML = '<div class="empty">No hay pedidos en esta categoría.</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(p => {
+    const nombre = p.nombre || p.negocio || 'Sin nombre';
+    const tel = p.telefono || p.tel || '—';
+    const dir = p.direccion || p.dir || '—';
+    const prods = p.productos || '—';
+    const estado = p.estado || 'pendiente';
+    const fecha = p.fecha || (p.timestamp ? p.timestamp.split('T')[0] : '—');
+    const canal = p.canal || p._col || 'web';
+    const telLimpio = tel.replace(/\D/g, '');
+    return `
+    <div class="pedido-card" id="pedido-${p.id}">
+      <div class="pedido-header">
+        <div>
+          <div class="pedido-id">#${p.id.substring(0,8).toUpperCase()} · ${canal}</div>
+          <div class="pedido-nombre">${nombre}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="pedido-fecha">${fecha}</span>
+          <span class="badge badge-${estado}">${estado}</span>
+        </div>
+      </div>
+      <div class="pedido-body">
+        <div class="pedido-info"><label>Teléfono</label><span>${tel}</span></div>
+        <div class="pedido-info"><label>Dirección</label><span>${dir}</span></div>
+        ${p.cuit ? `<div class="pedido-info"><label>CUIT</label><span>${p.cuit}</span></div>` : ''}
+        ${p.notas ? `<div class="pedido-info"><label>Notas</label><span>${p.notas}</span></div>` : ''}
+        <div class="pedido-productos"><strong>Productos:</strong> ${prods}</div>
+      </div>
+      <div class="pedido-footer">
+        <div class="pedido-total">${fmt(p.total_estimado)}</div>
+        <div class="acciones">
+          ${estado === 'pendiente' ? `<button class="btn-estado btn-confirmar" onclick="cambiarEstado('${p.id}', '${p._col}', 'confirmado')">✓ Confirmar</button>` : ''}
+          ${estado === 'confirmado' ? `<button class="btn-estado btn-entregar" onclick="cambiarEstado('${p.id}', '${p._col}', 'entregado')">📦 Entregado</button>` : ''}
+          ${estado !== 'cancelado' && estado !== 'entregado' ? `<button class="btn-estado btn-cancelar" onclick="cambiarEstado('${p.id}', '${p._col}', 'cancelado')">✕ Cancelar</button>` : ''}
+          ${telLimpio ? `<a class="btn-whatsapp" href="https://wa.me/54${telLimpio}" target="_blank">💬 WhatsApp</a>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function cambiarEstado(id, col, nuevoEstado) {
+  const docPath = `${BASE}/${col}/${id}`;
+  try {
+    await fetch(`${docPath}?key=${API_KEY}&updateMask.fieldPaths=estado`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { estado: { stringValue: nuevoEstado } } })
+    });
+    const p = pedidos.find(x => x.id === id);
+    if (p) p.estado = nuevoEstado;
+    actualizarStats();
+    renderPedidos();
+  } catch (err) {
+    alert('Error actualizando el estado.');
+  }
+}
+
+cargarPedidos();
+setInterval(cargarPedidos, 60000); // Auto-refresh cada minuto
+</script>
+</body>
+</html>
