@@ -1,4 +1,4 @@
-/ netlify/functions/pedido.js
+
 // Firebase REST API — sin SDK, sin cuenta de servicio
 
 const PROJECT = "am-materiales-12a2e";
