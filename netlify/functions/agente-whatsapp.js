@@ -87,10 +87,12 @@ async function guardarLead(lead) {
 // ── Notificación WhatsApp vía CallMeBot (a tu número personal, no al del bot) ─
 async function notificarWhatsApp(texto) {
   try {
-    const apiKey = process.env.CALLMEBOT_APIKEY;
-    if (!apiKey || !WHATSAPP_NOTIF) return;
-    const msg = encodeURIComponent(texto);
-    await fetch(`https://api.callmebot.com/whatsapp.php?phone=${WHATSAPP_NOTIF}&text=${msg}&apikey=${apiKey}`);
+    if (!WHATSAPP_NOTIF) {
+      console.log('NOTIF_PHONE no configurado, no se envía notificación');
+      return;
+    }
+    // Usa la misma WhatsApp Cloud API del bot para notificar al número personal
+    await enviarMensajeWA(WHATSAPP_NOTIF, texto);
   } catch (e) {
     console.error('Error notificación WhatsApp:', e);
   }
