@@ -93,12 +93,16 @@
   <header>
     <div>
       <h1>ADMIN PRECIOS</h1>
-      <div class="sub">productos_mayorista — Firestore</div>
+      <div class="sub" id="coleccionLabel">productos_mayorista — Firestore</div>
     </div>
     <button class="btn secundario chico" onclick="location.reload()">Cerrar</button>
   </header>
 
   <div class="contenedor">
+    <div class="tabs" style="margin-bottom:10px;">
+      <button class="tab-btn activo" id="colMayoristaBtn" onclick="cambiarColeccion('productos_mayorista')">Lista Mayorista</button>
+      <button class="tab-btn" id="colMinoristaBtn" onclick="cambiarColeccion('productos')">Lista Minorista (Top 50)</button>
+    </div>
     <div class="tabs">
       <button class="tab-btn activo" id="tabMasivaBtn" onclick="cambiarTab('masiva')">Actualización masiva</button>
       <button class="tab-btn" id="tabManualBtn" onclick="cambiarTab('manual')">Edición manual</button>
@@ -115,7 +119,14 @@
           El sistema busca la coincidencia con los productos ya cargados. Vas a poder revisar cada cambio antes de aplicarlo.
         </p>
         <textarea id="pegarLista" placeholder="ADITIVO VINILICO MULTIUSO TACURU 1LT&#9;$ 10,303.5259&#9;600&#10;HIDROFUGO CERESITA 1KG&#9;$ 3,651.6307&#9;600&#10;..."></textarea>
-        <div style="margin-top:12px; display:flex; gap:10px;">
+        <div style="margin:12px 0; display:flex; align-items:center; gap:10px;">
+          <label style="font-size:12px; font-weight:700; color:var(--texto-suave);">Actualizar campo de precio:</label>
+          <select id="campoPrecio" style="width:auto; padding:8px 12px;">
+            <option value="precio_pallet">Precio por pallet</option>
+            <option value="precio_unitario">Precio unitario</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:10px;">
           <button class="btn" style="width:auto; padding:12px 20px;" onclick="procesarLista()">Analizar lista</button>
           <button class="btn secundario" style="width:auto; padding:12px 20px;" onclick="document.getElementById('pegarLista').value=''">Limpiar</button>
         </div>
@@ -159,6 +170,7 @@
               <tr>
                 <th>Producto</th>
                 <th>Categoría</th>
+                <th>Precio unitario</th>
                 <th>Precio pallet</th>
                 <th>Unid. pallet</th>
                 <th></th>
@@ -178,8 +190,23 @@ const API_KEY = 'AIzaSyBiK7RgL9-d8SCPjWBq8xDciFBbCbwYicY';
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 const CLAVE_ACCESO = 'am2024';
 
+let COLECCION = 'productos_mayorista';
 let productos = []; // {id, nombre, categoria, precio_pallet, unidades_pallet, minimo_pallets}
 let matches = [];   // resultado del análisis de la lista pegada
+
+function cambiarColeccion(col) {
+  if (col === COLECCION) return;
+  COLECCION = col;
+  document.getElementById('colMayoristaBtn').classList.toggle('activo', col === 'productos_mayorista');
+  document.getElementById('colMinoristaBtn').classList.toggle('activo', col === 'productos');
+  document.getElementById('coleccionLabel').textContent = col + ' — Firestore';
+  document.getElementById('campoPrecio').value = col === 'productos_mayorista' ? 'precio_pallet' : 'precio_unitario';
+  productos = [];
+  matches = [];
+  document.getElementById('previewCard').style.display = 'none';
+  document.getElementById('pegarLista').value = '';
+  cargarProductos(true);
+}
 
 // ---------- LOGIN ----------
 function intentarLogin() {
@@ -226,7 +253,7 @@ async function fetchTodosProductos() {
   let all = [];
   let pageToken = null;
   do {
-    let url = `${BASE}/productos_mayorista?key=${API_KEY}&pageSize=300`;
+    let url = `${BASE}/${COLECCION}?key=${API_KEY}&pageSize=300`;
     if (pageToken) url += `&pageToken=${pageToken}`;
     const res = await fetch(url);
     const data = await res.json();
@@ -249,7 +276,7 @@ async function patchProducto(id, campos) {
     fields[k] = { doubleValue: Number(campos[k]) };
     paths.push(`updateMask.fieldPaths=${k}`);
   }
-  const url = `${BASE}/productos_mayorista/${id}?key=${API_KEY}&${paths.join('&')}`;
+  const url = `${BASE}/${COLECCION}/${id}?key=${API_KEY}&${paths.join('&')}`;
   const res = await fetch(url, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -318,19 +345,21 @@ function parsePorPallet(str) {
 
 function parseLinea(linea) {
   const partes = linea.split('\t').map(s => s.trim()).filter(Boolean);
-  let descripcion, precioStr, palletStr;
+  let descripcion, precioStr, palletStr = null;
   if (partes.length >= 3) {
     [descripcion, precioStr, palletStr] = partes;
+  } else if (partes.length === 2) {
+    [descripcion, precioStr] = partes;
   } else {
     // fallback: separado por espacios múltiples, con $ como marcador de precio
-    const m = linea.match(/^(.*?)\$\s*([\d.,]+)\s+([\dxX]+)\s*$/);
+    const m = linea.match(/^(.*?)\$\s*([\d.,]+)\s*([\dxX]*)\s*$/);
     if (!m) return null;
     descripcion = m[1].trim();
     precioStr = m[2];
-    palletStr = m[3];
+    palletStr = m[3] || null;
   }
   const precio = parsePrecio(precioStr);
-  const pallet = parsePorPallet(palletStr);
+  const pallet = palletStr ? parsePorPallet(palletStr) : null;
   if (!descripcion || isNaN(precio)) return null;
   return { descripcion, precio, pallet };
 }
@@ -346,7 +375,7 @@ function procesarLista() {
     matches.push({
       descripcionPegada: parsed.descripcion,
       precioNuevo: parsed.precio,
-      palletNuevo: parsed.pallet,
+      pallet: parsed.pallet,
       productoMatch: score >= 0.5 ? producto : null,
       score
     });
@@ -357,6 +386,7 @@ function procesarLista() {
 function renderPreview() {
   const card = document.getElementById('previewCard');
   const body = document.getElementById('previewBody');
+  const campo = document.getElementById('campoPrecio').value;
   if (!matches.length) {
     card.style.display = 'none';
     mostrarStatus('No se pudo interpretar ninguna línea. Revisá el formato pegado.', 'err');
@@ -364,7 +394,7 @@ function renderPreview() {
   }
   card.style.display = 'block';
   const ok = matches.filter(m => m.productoMatch).length;
-  document.getElementById('resumenMatch').textContent = `${ok} de ${matches.length} líneas encontraron producto`;
+  document.getElementById('resumenMatch').textContent = `${ok} de ${matches.length} líneas encontraron producto — actualizando "${campo}"`;
 
   body.innerHTML = matches.map((m, i) => {
     const okMatch = !!m.productoMatch;
@@ -382,12 +412,11 @@ function renderPreview() {
           ${okMatch ? '<span class="badge ok">match</span>' : '<span class="badge no">sin match</span>'}
         </td>
         <td>
-          ${okMatch ? `<span class="num-old">$${fmt(m.productoMatch.precio_pallet)}</span><br>` : ''}
+          ${okMatch ? `<span class="num-old">$${fmt(m.productoMatch[campo])}</span><br>` : ''}
           <span class="num-new">$${fmt(m.precioNuevo)}</span>
         </td>
         <td>
-          ${okMatch ? `<span class="num-old">${m.productoMatch.unidades_pallet ?? '-'}</span><br>` : ''}
-          <span class="num-new">${m.palletNuevo ?? '-'}</span>
+          ${m.pallet !== null ? (okMatch ? `<span class="num-old">${m.productoMatch.unidades_pallet ?? '-'}</span><br>` : '') + `<span class="num-new">${m.pallet}</span>` : '<span style="color:var(--texto-suave);">— sin cambio —</span>'}
         </td>
         <td></td>
       </tr>`;
@@ -405,14 +434,15 @@ function fmt(n) {
 }
 
 async function aplicarCambios() {
+  const campo = document.getElementById('campoPrecio').value;
   const aplicar = matches.filter(m => m.productoMatch);
   if (!aplicar.length) { mostrarStatus('No hay cambios confirmados para aplicar.', 'err'); return; }
-  mostrarStatus(`Aplicando ${aplicar.length} cambios...`, 'info');
+  mostrarStatus(`Aplicando ${aplicar.length} cambios en "${campo}"...`, 'info');
   let ok = 0, fail = 0;
   for (const m of aplicar) {
     try {
-      const campos = { precio_pallet: m.precioNuevo };
-      if (m.palletNuevo) campos.unidades_pallet = m.palletNuevo;
+      const campos = { [campo]: m.precioNuevo };
+      if (m.pallet !== null && m.pallet !== undefined) campos.unidades_pallet = m.pallet;
       await patchProducto(m.productoMatch.id, campos);
       ok++;
     } catch (e) {
@@ -435,6 +465,7 @@ function renderManual() {
     <tr data-id="${p.id}">
       <td>${p.nombre}</td>
       <td>${p.categoria || '-'}</td>
+      <td><input class="mini" type="number" value="${p.precio_unitario ?? ''}" id="unitario-${p.id}"></td>
       <td><input class="mini" type="number" value="${p.precio_pallet ?? ''}" id="precio-${p.id}"></td>
       <td><input class="mini" type="number" value="${p.unidades_pallet ?? ''}" id="unidades-${p.id}"></td>
       <td><button class="btn chico" onclick="guardarManual('${p.id}')">Guardar</button></td>
@@ -443,9 +474,11 @@ function renderManual() {
 }
 
 async function guardarManual(id) {
+  const unitario = parseFloat(document.getElementById('unitario-' + id).value);
   const precio = parseFloat(document.getElementById('precio-' + id).value);
   const unidades = parseFloat(document.getElementById('unidades-' + id).value);
   const campos = {};
+  if (!isNaN(unitario)) campos.precio_unitario = unitario;
   if (!isNaN(precio)) campos.precio_pallet = precio;
   if (!isNaN(unidades)) campos.unidades_pallet = unidades;
   if (!Object.keys(campos).length) return;
