@@ -201,6 +201,9 @@ exports.handler = async function (event) {
 
     if (!userId || !msgText) return { statusCode: 200, body: 'ok' };
 
+    // Reenvío en vivo del mensaje del cliente (para monitoreo)
+    await notificarWhatsApp(`📩 Cliente ${userId} escribió:\n"${msgText}"\n\nChat directo: https://wa.me/${userId}`);
+
     // Cargar historial
     const historial = await getConversacion(userId);
     historial.push({ role: 'user', content: msgText });
@@ -245,6 +248,7 @@ exports.handler = async function (event) {
     historial.push({ role: 'assistant', content: respuesta });
     await guardarConversacion(userId, historial);
     await enviarMensajeWA(userId, respuesta);
+    await notificarWhatsApp(`🤖 Bot le respondió a ${userId}:\n"${respuesta}"`);
 
     return { statusCode: 200, body: 'ok' };
 
