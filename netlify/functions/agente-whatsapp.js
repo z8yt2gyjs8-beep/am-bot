@@ -84,6 +84,41 @@ async function guardarLead(lead) {
   }
 }
 
+// ── Pausa por intervención humana (cuando Gonzalo escribe manualmente) ───────
+async function marcarPausada(userId) {
+  try {
+    const url = `${FB_BASE}/conversaciones_bot/${userId}?key=${FB_API_KEY}`;
+    const hasta = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // pausa 12hs
+    const body = {
+      fields: {
+        pausada:      { booleanValue: true },
+        pausadaHasta: { stringValue: hasta },
+      },
+    };
+    await fetch(`${url}&updateMask.fieldPaths=pausada&updateMask.fieldPaths=pausadaHasta`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    console.error('Error marcarPausada:', e);
+  }
+}
+
+async function estaPausada(userId) {
+  try {
+    const url = `${FB_BASE}/conversaciones_bot/${userId}?key=${FB_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const pausada = data.fields?.pausada?.booleanValue;
+    const hasta = data.fields?.pausadaHasta?.stringValue;
+    if (pausada && hasta && new Date(hasta) > new Date()) return true;
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
 // ── Notificación WhatsApp vía CallMeBot (a tu número personal, no al del bot) ─
 async function notificarWhatsApp(texto) {
   try {
@@ -192,9 +227,18 @@ exports.handler = async function (event) {
     const entry   = body.entry?.[0];
     const change  = entry?.changes?.[0];
     const value   = change?.value;
+    const field   = change?.field; // 'messages' (cliente) o 'message_echoes' (Gonzalo escribiendo desde la app)
     const message = value?.messages?.[0];
 
     if (!message) return { statusCode: 200, body: 'ok' }; // ej: status updates, sin mensaje de texto
+
+    // Si el mensaje vino de la app de WhatsApp Business (Gonzalo escribiendo manual):
+    // pausamos el bot en esa conversación para no pisarle la respuesta.
+    if (field === 'message_echoes') {
+      const clienteId = message.to || value?.contacts?.[0]?.wa_id;
+      if (clienteId) await marcarPausada(clienteId);
+      return { statusCode: 200, body: 'ok' };
+    }
 
     const userId  = message.from;           // número del cliente, ej "5491122334455"
     const msgText = message.text?.body;
@@ -203,6 +247,11 @@ exports.handler = async function (event) {
 
     // Reenvío en vivo del mensaje del cliente (para monitoreo)
     await notificarWhatsApp(`📩 Cliente ${userId} escribió:\n"${msgText}"\n\nChat directo: https://wa.me/${userId}`);
+
+    // Si Gonzalo ya está atendiendo esta conversación manualmente, el bot no responde
+    if (await estaPausada(userId)) {
+      return { statusCode: 200, body: 'ok' };
+    }
 
     // Cargar historial
     const historial = await getConversacion(userId);
