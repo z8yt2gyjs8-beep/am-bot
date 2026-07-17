@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AM Materiales — Admin Precios</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
     --naranja: #D4813A;
@@ -118,6 +119,12 @@
           Pegá la lista tal como la copiás de tu planilla (Descripción, Precio final, Por pallet — separado por tabs o espacios).
           El sistema busca la coincidencia con los productos ya cargados. Vas a poder revisar cada cambio antes de aplicarlo.
         </p>
+        <div style="margin-bottom:14px; padding:14px; background:var(--gris-claro); border-radius:10px; border:2px dashed var(--borde);">
+          <label style="font-size:13px; font-weight:700; display:block; margin-bottom:8px;">📎 Subir archivo (Excel .xlsx / .xls / .csv)</label>
+          <input type="file" id="archivoLista" accept=".xlsx,.xls,.csv" onchange="cargarArchivo(event)">
+          <p style="font-size:11px; color:var(--texto-suave); margin-top:8px;">Columnas esperadas: Descripción, Precio final, Por pallet (en ese orden, con o sin encabezado).</p>
+        </div>
+        <p class="hint" style="margin-bottom:8px;">— o pegá el texto manualmente abajo —</p>
         <textarea id="pegarLista" placeholder="ADITIVO VINILICO MULTIUSO TACURU 1LT&#9;$ 10,303.5259&#9;600&#10;HIDROFUGO CERESITA 1KG&#9;$ 3,651.6307&#9;600&#10;..."></textarea>
         <div style="margin:12px 0; display:flex; align-items:center; gap:10px;">
           <label style="font-size:12px; font-weight:700; color:var(--texto-suave);">Actualizar campo de precio:</label>
@@ -127,7 +134,7 @@
           </select>
         </div>
         <div style="display:flex; gap:10px;">
-          <button class="btn" style="width:auto; padding:12px 20px;" onclick="procesarLista()">Analizar lista</button>
+          <button class="btn" style="width:auto; padding:12px 20px;" onclick="procesarLista()">Analizar lista pegada</button>
           <button class="btn secundario" style="width:auto; padding:12px 20px;" onclick="document.getElementById('pegarLista').value=''">Limpiar</button>
         </div>
       </div>
@@ -381,6 +388,60 @@ function procesarLista() {
     });
   }
   renderPreview();
+}
+
+function cargarArchivo(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  mostrarStatus('Leyendo archivo...', 'info');
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const hoja = workbook.Sheets[workbook.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(hoja, { header: 1, defval: '' });
+
+      matches = [];
+      for (const fila of filas) {
+        if (!fila || !fila.length) continue;
+        const col0 = String(fila[0] ?? '').trim();
+        if (!col0) continue;
+        // saltar posible encabezado
+        if (/descrip|producto|nombre/i.test(col0)) continue;
+
+        const descripcion = col0;
+        const precioRaw = fila[1];
+        const palletRaw = fila[2];
+        if (precioRaw === undefined || precioRaw === '') continue;
+
+        const precio = typeof precioRaw === 'number' ? precioRaw : parsePrecio(String(precioRaw));
+        let pallet = null;
+        if (palletRaw !== undefined && palletRaw !== '') {
+          pallet = typeof palletRaw === 'number' ? palletRaw : parsePorPallet(String(palletRaw));
+        }
+        if (isNaN(precio)) continue;
+
+        const { producto, score } = mejorMatch(descripcion);
+        matches.push({
+          descripcionPegada: descripcion,
+          precioNuevo: precio,
+          pallet,
+          productoMatch: score >= 0.5 ? producto : null,
+          score
+        });
+      }
+      if (!matches.length) {
+        mostrarStatus('No se encontraron filas válidas en el archivo. Revisá que la primera columna sea la descripción y la segunda el precio.', 'err');
+        return;
+      }
+      mostrarStatus(`Archivo leído: ${matches.length} filas encontradas.`, 'ok');
+      renderPreview();
+    } catch (err) {
+      mostrarStatus('Error leyendo el archivo: ' + err.message, 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function renderPreview() {
