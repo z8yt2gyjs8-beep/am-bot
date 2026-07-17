@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AM Materiales — Admin Precios</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --naranja: #D4813A;
+    --naranja-dark: #b86a28;
+    --negro: #0a0a0a;
+    --blanco: #ffffff;
+    --gris-claro: #f4f4f4;
+    --gris-input: #eeeeee;
+    --texto: #1a1a1a;
+    --texto-suave: #666;
+    --borde: #e0e0e0;
+    --verde: #2e8b57;
+    --rojo: #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { font-family: 'Montserrat', sans-serif; background: var(--gris-claro); color: var(--texto); }
+  .pantalla { display: none; min-height: 100vh; }
+  .pantalla.activa { display: block; }
+
+  /* LOGIN */
+  #pantallaLogin { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--negro); }
+  .login-card { background:var(--blanco); border-radius:16px; padding:32px 28px; width:100%; max-width:340px; text-align:center; }
+  .login-card h1 { font-size:20px; font-weight:900; color:var(--naranja); letter-spacing:1px; margin-bottom:4px; }
+  .login-card p { font-size:13px; color:var(--texto-suave); margin-bottom:20px; }
+  .input-field { width:100%; padding:14px; border:2px solid var(--borde); border-radius:10px; font-size:15px; font-family:inherit; margin-bottom:12px; }
+  .btn { display:inline-block; width:100%; padding:14px; border:none; border-radius:10px; background:var(--naranja); color:#fff; font-weight:800; font-size:14px; letter-spacing:0.5px; cursor:pointer; }
+  .btn:hover { background:var(--naranja-dark); }
+  .btn.secundario { background:var(--gris-input); color:var(--texto); }
+  .btn.chico { padding:8px 14px; font-size:12px; width:auto; }
+  .error-msg { color:var(--rojo); font-size:13px; margin-bottom:10px; display:none; }
+
+  /* HEADER */
+  header { background:var(--negro); color:#fff; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
+  header h1 { font-size:16px; font-weight:800; letter-spacing:1px; color:var(--naranja); }
+  header .sub { font-size:11px; color:#999; }
+
+  .contenedor { max-width:1000px; margin:0 auto; padding:20px; }
+  .tabs { display:flex; gap:8px; margin-bottom:20px; }
+  .tab-btn { flex:1; padding:12px; border:none; border-radius:10px; background:var(--blanco); color:var(--texto-suave); font-weight:700; font-size:13px; cursor:pointer; border:2px solid var(--borde); }
+  .tab-btn.activo { background:var(--naranja); color:#fff; border-color:var(--naranja); }
+  .seccion { display:none; }
+  .seccion.activa { display:block; }
+
+  .card { background:var(--blanco); border-radius:14px; padding:20px; margin-bottom:16px; }
+  .card h2 { font-size:15px; font-weight:800; margin-bottom:6px; }
+  .card p.hint { font-size:12px; color:var(--texto-suave); margin-bottom:14px; line-height:1.5; }
+  textarea { width:100%; min-height:180px; border:2px solid var(--borde); border-radius:10px; padding:12px; font-family: 'Courier New', monospace; font-size:12px; resize:vertical; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:8px 6px; border-bottom:2px solid var(--borde); font-size:11px; color:var(--texto-suave); text-transform:uppercase; }
+  td { padding:8px 6px; border-bottom:1px solid var(--borde); vertical-align:middle; }
+  tr.match-ok { background:rgba(46,139,87,0.06); }
+  tr.match-no { background:rgba(192,57,43,0.06); }
+  .badge { font-size:10px; font-weight:800; padding:3px 8px; border-radius:20px; display:inline-block; }
+  .badge.ok { background:var(--verde); color:#fff; }
+  .badge.no { background:var(--rojo); color:#fff; }
+  select, input.mini { padding:6px; border:1px solid var(--borde); border-radius:6px; font-size:12px; font-family:inherit; width:100%; }
+  .num-old { color:var(--texto-suave); text-decoration:line-through; font-size:11px; }
+  .num-new { font-weight:800; color:var(--verde); }
+  .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .search { padding:10px 14px; border:2px solid var(--borde); border-radius:10px; font-size:13px; width:260px; }
+  .status { font-size:12px; padding:10px; border-radius:8px; margin-bottom:12px; display:none; }
+  .status.show { display:block; }
+  .status.ok { background:rgba(46,139,87,0.1); color:var(--verde); }
+  .status.err { background:rgba(192,57,43,0.1); color:var(--rojo); }
+  .status.info { background:rgba(212,129,58,0.1); color:var(--naranja-dark); }
+  .loader { text-align:center; padding:30px; color:var(--texto-suave); font-size:13px; }
+  .row-save-ok { opacity:0.5; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="pantallaLogin" class="pantalla activa">
+  <div class="login-card">
+    <h1>AM MATERIALES</h1>
+    <p>Admin de precios — acceso interno</p>
+    <div class="error-msg" id="loginError">Clave incorrecta</div>
+    <input type="password" id="loginInput" class="input-field" placeholder="Clave de acceso">
+    <button class="btn" onclick="intentarLogin()">Ingresar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="pantallaApp" class="pantalla">
+  <header>
+    <div>
+      <h1>ADMIN PRECIOS</h1>
+      <div class="sub">productos_mayorista — Firestore</div>
+    </div>
+    <button class="btn secundario chico" onclick="location.reload()">Cerrar</button>
+  </header>
+
+  <div class="contenedor">
+    <div class="tabs">
+      <button class="tab-btn activo" id="tabMasivaBtn" onclick="cambiarTab('masiva')">Actualización masiva</button>
+      <button class="tab-btn" id="tabManualBtn" onclick="cambiarTab('manual')">Edición manual</button>
+    </div>
+
+    <div id="statusBox" class="status"></div>
+
+    <!-- TAB MASIVA -->
+    <div class="seccion activa" id="seccionMasiva">
+      <div class="card">
+        <h2>Pegar lista de precios</h2>
+        <p class="hint">
+          Pegá la lista tal como la copiás de tu planilla (Descripción, Precio final, Por pallet — separado por tabs o espacios).
+          El sistema busca la coincidencia con los productos ya cargados. Vas a poder revisar cada cambio antes de aplicarlo.
+        </p>
+        <textarea id="pegarLista" placeholder="ADITIVO VINILICO MULTIUSO TACURU 1LT&#9;$ 10,303.5259&#9;600&#10;HIDROFUGO CERESITA 1KG&#9;$ 3,651.6307&#9;600&#10;..."></textarea>
+        <div style="margin-top:12px; display:flex; gap:10px;">
+          <button class="btn" style="width:auto; padding:12px 20px;" onclick="procesarLista()">Analizar lista</button>
+          <button class="btn secundario" style="width:auto; padding:12px 20px;" onclick="document.getElementById('pegarLista').value=''">Limpiar</button>
+        </div>
+      </div>
+
+      <div class="card" id="previewCard" style="display:none;">
+        <h2>Vista previa de cambios</h2>
+        <p class="hint">Revisá los matches. Los marcados en rojo no encontraron producto — elegí uno manualmente o dejalos así para omitir.</p>
+        <div class="toolbar">
+          <div id="resumenMatch" style="font-size:12px; color:var(--texto-suave);"></div>
+          <button class="btn" style="width:auto; padding:10px 18px;" onclick="aplicarCambios()">Aplicar cambios confirmados</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="tablaPreview">
+            <thead>
+              <tr>
+                <th>Descripción pegada</th>
+                <th>Producto en Firestore</th>
+                <th>Precio pallet</th>
+                <th>Unid. pallet</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB MANUAL -->
+    <div class="seccion" id="seccionManual">
+      <div class="card">
+        <div class="toolbar">
+          <input type="text" class="search" id="buscarManual" placeholder="Buscar producto..." oninput="renderManual()">
+          <button class="btn secundario chico" onclick="cargarProductos(true)">Recargar</button>
+        </div>
+        <div id="manualLoader" class="loader">Cargando productos...</div>
+        <div style="overflow-x:auto;">
+          <table id="tablaManual" style="display:none;">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Precio pallet</th>
+                <th>Unid. pallet</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="manualBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROJECT = 'am-materiales-12a2e';
+const API_KEY = 'AIzaSyBiK7RgL9-d8SCPjWBq8xDciFBbCbwYicY';
+const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+const CLAVE_ACCESO = 'am2024';
+
+let productos = []; // {id, nombre, categoria, precio_pallet, unidades_pallet, minimo_pallets}
+let matches = [];   // resultado del análisis de la lista pegada
+
+// ---------- LOGIN ----------
+function intentarLogin() {
+  const val = document.getElementById('loginInput').value.trim();
+  if (val === CLAVE_ACCESO) {
+    document.getElementById('pantallaLogin').classList.remove('activa');
+    document.getElementById('pantallaApp').classList.add('activa');
+    cargarProductos();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+document.getElementById('loginInput').addEventListener('keypress', e => { if (e.key === 'Enter') intentarLogin(); });
+
+// ---------- TABS ----------
+function cambiarTab(tab) {
+  document.getElementById('seccionMasiva').classList.toggle('activa', tab === 'masiva');
+  document.getElementById('seccionManual').classList.toggle('activa', tab === 'manual');
+  document.getElementById('tabMasivaBtn').classList.toggle('activo', tab === 'masiva');
+  document.getElementById('tabManualBtn').classList.toggle('activo', tab === 'manual');
+}
+
+// ---------- STATUS ----------
+function mostrarStatus(msg, tipo) {
+  const box = document.getElementById('statusBox');
+  box.textContent = msg;
+  box.className = 'status show ' + tipo;
+}
+
+// ---------- FIRESTORE HELPERS ----------
+function fieldsToObj(fields) {
+  const obj = {};
+  for (const k in fields || {}) {
+    const v = fields[k];
+    if (v.stringValue !== undefined) obj[k] = v.stringValue;
+    else if (v.doubleValue !== undefined) obj[k] = v.doubleValue;
+    else if (v.integerValue !== undefined) obj[k] = Number(v.integerValue);
+    else if (v.booleanValue !== undefined) obj[k] = v.booleanValue;
+  }
+  return obj;
+}
+
+async function fetchTodosProductos() {
+  let all = [];
+  let pageToken = null;
+  do {
+    let url = `${BASE}/productos_mayorista?key=${API_KEY}&pageSize=300`;
+    if (pageToken) url += `&pageToken=${pageToken}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.documents) {
+      for (const doc of data.documents) {
+        const obj = fieldsToObj(doc.fields);
+        obj.id = doc.name.split('/').pop();
+        all.push(obj);
+      }
+    }
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+  return all;
+}
+
+async function patchProducto(id, campos) {
+  const fields = {};
+  const paths = [];
+  for (const k in campos) {
+    fields[k] = { doubleValue: Number(campos[k]) };
+    paths.push(`updateMask.fieldPaths=${k}`);
+  }
+  const url = `${BASE}/productos_mayorista/${id}?key=${API_KEY}&${paths.join('&')}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields })
+  });
+  if (!res.ok) throw new Error('Error guardando ' + id);
+  return res.json();
+}
+
+async function cargarProductos(forzar) {
+  if (productos.length && !forzar) { renderManual(); return; }
+  document.getElementById('manualLoader').style.display = 'block';
+  document.getElementById('tablaManual').style.display = 'none';
+  try {
+    productos = await fetchTodosProductos();
+    renderManual();
+  } catch (e) {
+    mostrarStatus('Error cargando productos: ' + e.message, 'err');
+  }
+  document.getElementById('manualLoader').style.display = 'none';
+}
+
+// ---------- NORMALIZACIÓN Y MATCH ----------
+function normalizar(str) {
+  return (str || '')
+    .toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function scoreMatch(a, b) {
+  const wa = normalizar(a).split(' ').filter(Boolean);
+  const wb = normalizar(b).split(' ').filter(Boolean);
+  if (!wa.length || !wb.length) return 0;
+  const setB = new Set(wb);
+  let hits = 0;
+  for (const w of wa) if (setB.has(w)) hits++;
+  return hits / Math.max(wa.length, wb.length);
+}
+
+function mejorMatch(descripcion) {
+  let mejor = null, mejorScore = 0;
+  for (const p of productos) {
+    const s = scoreMatch(descripcion, p.nombre);
+    if (s > mejorScore) { mejorScore = s; mejor = p; }
+  }
+  return { producto: mejor, score: mejorScore };
+}
+
+// ---------- PARSEO DE LISTA PEGADA ----------
+function parsePrecio(str) {
+  const limpio = str.replace(/[^\d.,]/g, '');
+  // Formato "10,303.5259" -> quitar comas de miles, mantener punto decimal
+  return parseFloat(limpio.replace(/,/g, ''));
+}
+
+function parsePorPallet(str) {
+  const s = str.trim();
+  const mult = s.match(/^(\d+)\s*[xX]\s*(\d+)$/);
+  if (mult) return Number(mult[1]) * Number(mult[2]);
+  const n = parseInt(s.replace(/[^\d]/g, ''), 10);
+  return isNaN(n) ? null : n;
+}
+
+function parseLinea(linea) {
+  const partes = linea.split('\t').map(s => s.trim()).filter(Boolean);
+  let descripcion, precioStr, palletStr;
+  if (partes.length >= 3) {
+    [descripcion, precioStr, palletStr] = partes;
+  } else {
+    // fallback: separado por espacios múltiples, con $ como marcador de precio
+    const m = linea.match(/^(.*?)\$\s*([\d.,]+)\s+([\dxX]+)\s*$/);
+    if (!m) return null;
+    descripcion = m[1].trim();
+    precioStr = m[2];
+    palletStr = m[3];
+  }
+  const precio = parsePrecio(precioStr);
+  const pallet = parsePorPallet(palletStr);
+  if (!descripcion || isNaN(precio)) return null;
+  return { descripcion, precio, pallet };
+}
+
+function procesarLista() {
+  const texto = document.getElementById('pegarLista').value;
+  const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
+  matches = [];
+  for (const linea of lineas) {
+    const parsed = parseLinea(linea);
+    if (!parsed) continue;
+    const { producto, score } = mejorMatch(parsed.descripcion);
+    matches.push({
+      descripcionPegada: parsed.descripcion,
+      precioNuevo: parsed.precio,
+      palletNuevo: parsed.pallet,
+      productoMatch: score >= 0.5 ? producto : null,
+      score
+    });
+  }
+  renderPreview();
+}
+
+function renderPreview() {
+  const card = document.getElementById('previewCard');
+  const body = document.getElementById('previewBody');
+  if (!matches.length) {
+    card.style.display = 'none';
+    mostrarStatus('No se pudo interpretar ninguna línea. Revisá el formato pegado.', 'err');
+    return;
+  }
+  card.style.display = 'block';
+  const ok = matches.filter(m => m.productoMatch).length;
+  document.getElementById('resumenMatch').textContent = `${ok} de ${matches.length} líneas encontraron producto`;
+
+  body.innerHTML = matches.map((m, i) => {
+    const okMatch = !!m.productoMatch;
+    const opciones = productos.map(p =>
+      `<option value="${p.id}" ${okMatch && p.id === m.productoMatch.id ? 'selected' : ''}>${p.nombre}</option>`
+    ).join('');
+    return `
+      <tr class="${okMatch ? 'match-ok' : 'match-no'}" data-idx="${i}">
+        <td>${m.descripcionPegada}</td>
+        <td>
+          <select onchange="reasignarMatch(${i}, this.value)">
+            <option value="">— Omitir —</option>
+            ${opciones}
+          </select>
+          ${okMatch ? '<span class="badge ok">match</span>' : '<span class="badge no">sin match</span>'}
+        </td>
+        <td>
+          ${okMatch ? `<span class="num-old">$${fmt(m.productoMatch.precio_pallet)}</span><br>` : ''}
+          <span class="num-new">$${fmt(m.precioNuevo)}</span>
+        </td>
+        <td>
+          ${okMatch ? `<span class="num-old">${m.productoMatch.unidades_pallet ?? '-'}</span><br>` : ''}
+          <span class="num-new">${m.palletNuevo ?? '-'}</span>
+        </td>
+        <td></td>
+      </tr>`;
+  }).join('');
+}
+
+function reasignarMatch(idx, productoId) {
+  matches[idx].productoMatch = productoId ? productos.find(p => p.id === productoId) : null;
+  renderPreview();
+}
+
+function fmt(n) {
+  if (n === undefined || n === null || isNaN(n)) return '-';
+  return Number(n).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+}
+
+async function aplicarCambios() {
+  const aplicar = matches.filter(m => m.productoMatch);
+  if (!aplicar.length) { mostrarStatus('No hay cambios confirmados para aplicar.', 'err'); return; }
+  mostrarStatus(`Aplicando ${aplicar.length} cambios...`, 'info');
+  let ok = 0, fail = 0;
+  for (const m of aplicar) {
+    try {
+      const campos = { precio_pallet: m.precioNuevo };
+      if (m.palletNuevo) campos.unidades_pallet = m.palletNuevo;
+      await patchProducto(m.productoMatch.id, campos);
+      ok++;
+    } catch (e) {
+      fail++;
+    }
+  }
+  mostrarStatus(`Listo: ${ok} productos actualizados${fail ? `, ${fail} fallaron` : ''}. El cotizador y el bot ya reflejan los nuevos precios.`, fail ? 'err' : 'ok');
+  await cargarProductos(true);
+  document.getElementById('pegarLista').value = '';
+  document.getElementById('previewCard').style.display = 'none';
+}
+
+// ---------- EDICIÓN MANUAL ----------
+function renderManual() {
+  const filtro = normalizar(document.getElementById('buscarManual').value);
+  const body = document.getElementById('manualBody');
+  const lista = productos.filter(p => !filtro || normalizar(p.nombre).includes(filtro));
+  document.getElementById('tablaManual').style.display = 'table';
+  body.innerHTML = lista.map(p => `
+    <tr data-id="${p.id}">
+      <td>${p.nombre}</td>
+      <td>${p.categoria || '-'}</td>
+      <td><input class="mini" type="number" value="${p.precio_pallet ?? ''}" id="precio-${p.id}"></td>
+      <td><input class="mini" type="number" value="${p.unidades_pallet ?? ''}" id="unidades-${p.id}"></td>
+      <td><button class="btn chico" onclick="guardarManual('${p.id}')">Guardar</button></td>
+    </tr>
+  `).join('');
+}
+
+async function guardarManual(id) {
+  const precio = parseFloat(document.getElementById('precio-' + id).value);
+  const unidades = parseFloat(document.getElementById('unidades-' + id).value);
+  const campos = {};
+  if (!isNaN(precio)) campos.precio_pallet = precio;
+  if (!isNaN(unidades)) campos.unidades_pallet = unidades;
+  if (!Object.keys(campos).length) return;
+  try {
+    await patchProducto(id, campos);
+    const p = productos.find(x => x.id === id);
+    Object.assign(p, campos);
+    mostrarStatus('Producto actualizado.', 'ok');
+  } catch (e) {
+    mostrarStatus('Error al guardar: ' + e.message, 'err');
+  }
+}
+</script>
+</body>
+</html>
