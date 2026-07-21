@@ -168,7 +168,10 @@
       <div class="card">
         <div class="toolbar">
           <input type="text" class="search" id="buscarManual" placeholder="Buscar producto..." oninput="renderManual()">
-          <button class="btn secundario chico" onclick="cargarProductos(true)">Recargar</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn secundario chico" onclick="cargarProductos(true)">Recargar</button>
+            <button class="btn chico" onclick="guardarTodos()">Guardar todos los cambios</button>
+          </div>
         </div>
         <div id="manualLoader" class="loader">Cargando productos...</div>
         <div style="overflow-x:auto;">
@@ -575,6 +578,52 @@ async function guardarManual(id) {
   } catch (e) {
     mostrarStatus('Error al guardar: ' + e.message, 'err');
   }
+}
+
+async function guardarTodos() {
+  const filas = document.querySelectorAll('#manualBody tr');
+  let cambios = [];
+
+  filas.forEach(fila => {
+    const id = fila.getAttribute('data-id');
+    const p = productos.find(x => x.id === id);
+    if (!p) return;
+
+    const categoria = document.getElementById('categoria-' + id).value.trim();
+    const unitario = parseFloat(document.getElementById('unitario-' + id).value);
+    const precio = parseFloat(document.getElementById('precio-' + id).value);
+    const unidades = parseFloat(document.getElementById('unidades-' + id).value);
+
+    const camposNumericos = {};
+    const camposTexto = {};
+
+    if (!isNaN(unitario) && unitario !== p.precio_unitario) camposNumericos.precio_unitario = unitario;
+    if (!isNaN(precio) && precio !== p.precio_pallet) camposNumericos.precio_pallet = precio;
+    if (!isNaN(unidades) && unidades !== p.unidades_pallet) camposNumericos.unidades_pallet = unidades;
+    if (categoria && categoria !== (p.categoria || '')) camposTexto.categoria = categoria;
+
+    if (Object.keys(camposNumericos).length || Object.keys(camposTexto).length) {
+      cambios.push({ id, p, camposNumericos, camposTexto });
+    }
+  });
+
+  if (!cambios.length) {
+    mostrarStatus('No hay cambios para guardar.', 'info');
+    return;
+  }
+
+  mostrarStatus(`Guardando ${cambios.length} producto(s) modificado(s)...`, 'info');
+  let ok = 0, fail = 0;
+  for (const c of cambios) {
+    try {
+      await patchProductoCampos(c.id, c.camposNumericos, c.camposTexto);
+      Object.assign(c.p, c.camposNumericos, c.camposTexto);
+      ok++;
+    } catch (e) {
+      fail++;
+    }
+  }
+  mostrarStatus(`Listo: ${ok} producto(s) guardado(s)${fail ? `, ${fail} fallaron` : ''}.`, fail ? 'err' : 'ok');
 }
 </script>
 </body>
