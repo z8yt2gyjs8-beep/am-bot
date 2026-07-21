@@ -525,7 +525,7 @@ function renderManual() {
   body.innerHTML = lista.map(p => `
     <tr data-id="${p.id}">
       <td>${p.nombre}</td>
-      <td>${p.categoria || '-'}</td>
+      <td><input class="mini" type="text" value="${p.categoria || ''}" id="categoria-${p.id}"></td>
       <td><input class="mini" type="number" value="${p.precio_unitario ?? ''}" id="unitario-${p.id}"></td>
       <td><input class="mini" type="number" value="${p.precio_pallet ?? ''}" id="precio-${p.id}"></td>
       <td><input class="mini" type="number" value="${p.unidades_pallet ?? ''}" id="unidades-${p.id}"></td>
@@ -534,19 +534,43 @@ function renderManual() {
   `).join('');
 }
 
+async function patchProductoCampos(id, camposNumericos, camposTexto) {
+  const fields = {};
+  const paths = [];
+  for (const k in camposNumericos) {
+    fields[k] = { doubleValue: Number(camposNumericos[k]) };
+    paths.push(`updateMask.fieldPaths=${k}`);
+  }
+  for (const k in camposTexto) {
+    fields[k] = { stringValue: String(camposTexto[k]) };
+    paths.push(`updateMask.fieldPaths=${k}`);
+  }
+  const url = `${BASE}/${COLECCION}/${id}?key=${API_KEY}&${paths.join('&')}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields })
+  });
+  if (!res.ok) throw new Error('Error guardando ' + id);
+  return res.json();
+}
+
 async function guardarManual(id) {
+  const categoria = document.getElementById('categoria-' + id).value.trim();
   const unitario = parseFloat(document.getElementById('unitario-' + id).value);
   const precio = parseFloat(document.getElementById('precio-' + id).value);
   const unidades = parseFloat(document.getElementById('unidades-' + id).value);
-  const campos = {};
-  if (!isNaN(unitario)) campos.precio_unitario = unitario;
-  if (!isNaN(precio)) campos.precio_pallet = precio;
-  if (!isNaN(unidades)) campos.unidades_pallet = unidades;
-  if (!Object.keys(campos).length) return;
+  const camposNumericos = {};
+  const camposTexto = {};
+  if (!isNaN(unitario)) camposNumericos.precio_unitario = unitario;
+  if (!isNaN(precio)) camposNumericos.precio_pallet = precio;
+  if (!isNaN(unidades)) camposNumericos.unidades_pallet = unidades;
+  if (categoria) camposTexto.categoria = categoria;
+  if (!Object.keys(camposNumericos).length && !Object.keys(camposTexto).length) return;
   try {
-    await patchProducto(id, campos);
+    await patchProductoCampos(id, camposNumericos, camposTexto);
     const p = productos.find(x => x.id === id);
-    Object.assign(p, campos);
+    Object.assign(p, camposNumericos, camposTexto);
     mostrarStatus('Producto actualizado.', 'ok');
   } catch (e) {
     mostrarStatus('Error al guardar: ' + e.message, 'err');
